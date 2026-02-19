@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import VerificationModal from "./VerificationModal";
 
 // Dummy Data Configuration
 const DUMMY_PROFILES: Record<string, {
@@ -21,7 +22,7 @@ const DUMMY_PROFILES: Record<string, {
         balance: "3,800 BDT",
         role: "Premium Member",
         withdrawalAmount: "3,400 BDT",
-        badge: "Silver",
+        badge: "Gold",
         subscriptionAmount: "3,500 BDT",
         tasks: { pending: 250, active: 220, completed: 45 }
     },
@@ -32,7 +33,7 @@ const DUMMY_PROFILES: Record<string, {
         balance: "2,800 BDT",
         role: "Premium Member",
         withdrawalAmount: "2,340 BDT",
-        badge: "Silver",
+        badge: "Gold",
         subscriptionAmount: "3,500 BDT",
         tasks: { pending: 150, active: 135, completed: 25 } // Updated as per request
     }
@@ -82,37 +83,59 @@ function ResultContent() {
     const phone = searchParams.get("phone");
     const router = useRouter();
     const [mounted, setMounted] = useState(false);
+    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    if (!mounted) return null;
-
     const profile = phone ? DUMMY_PROFILES[phone] : null;
 
+    const showWarnings = phone !== "01875331445";
+
+    if (!mounted) return null;
+
     const handleWithdraw = () => {
-        alert(`Initiating withdrawal for ${profile?.name}...\nAmount: ${profile?.withdrawalAmount}`);
+        // Check if already pending for this phone number
+        const isPending = localStorage.getItem(`withdrawal_pending_${phone}`);
+        if (isPending === "true") {
+            router.push("/pending");
+            return;
+        }
+        setIsVerificationModalOpen(true);
+    };
+
+    const handleVerificationSubmit = (nidNumber: string, nidFile: File | null) => {
+        setIsVerificationModalOpen(false);
+        // Simulate API call success
+        // Save pending status to localStorage
+        if (phone) {
+            localStorage.setItem(`withdrawal_pending_${phone}`, "true");
+        }
+        router.push("/pending");
+        // alert(`Verification Submitted!\nName: ${profile?.name}\nNID: ${nidNumber}\nFile: ${nidFile?.name}\n\nInitiating withdrawal for ${profile?.withdrawalAmount}...`);
     };
 
     return (
         <main className="container">
             {/* Government Notice */}
-            <div className="fade-in-up" style={{
-                background: "rgba(220, 38, 38, 0.15)",
-                border: "1px solid rgba(220, 38, 38, 0.4)",
-                color: "#fca5a5",
-                padding: "1.5rem",
-                borderRadius: "16px",
-                marginBottom: "2rem",
-                maxWidth: "800px",
-                width: "100%",
-                textAlign: "center",
-                fontSize: "1.1rem",
-                lineHeight: "1.6"
-            }}>
-                ⚠️ বাংলাদেশ নির্বাচন আইন অনুসারে , সরকার গঠন এর আগে পর্যন্ত , বৌদেশিক লেনদেন ১৮ তারিখ পর্যন্ত নিষ্ক্রিয় থাকবে।
-            </div>
+            {showWarnings && (
+                <div className="fade-in-up" style={{
+                    background: "rgba(220, 38, 38, 0.15)",
+                    border: "1px solid rgba(220, 38, 38, 0.4)",
+                    color: "#fca5a5",
+                    padding: "1.5rem",
+                    borderRadius: "16px",
+                    marginBottom: "2rem",
+                    maxWidth: "800px",
+                    width: "100%",
+                    textAlign: "center",
+                    fontSize: "1.1rem",
+                    lineHeight: "1.6"
+                }}>
+                    ⚠️ বাংলাদেশ নির্বাচন আইন অনুসারে , সরকার গঠন এর আগে পর্যন্ত , বৌদেশিক লেনদেন ১৮ তারিখ পর্যন্ত নিষ্ক্রিয় থাকবে।
+                </div>
+            )}
 
             <div className="glass-panel fade-in-up" style={{ padding: "3rem", maxWidth: "800px", width: "100%", animationDelay: "0.1s" }}>
                 <button
@@ -224,18 +247,20 @@ function ResultContent() {
                         </div>
 
                         {/* Withdrawal Notice */}
-                        <div style={{
-                            background: "rgba(234, 179, 8, 0.1)",
-                            border: "1px solid rgba(234, 179, 8, 0.3)",
-                            color: "#fde047",
-                            padding: "1rem",
-                            borderRadius: "12px",
-                            fontSize: "0.95rem",
-                            textAlign: "center",
-                            lineHeight: "1.5"
-                        }}>
-                            আমরা শুধু মাত্র Gold User প্রোফাইল এর জন্য ইনস্টান উইথড্র অপশন Active। আপনি ৬৫০ BDT Pay করলে ইনস্ট্যান্ট Withdraw Option, Active হয়ে যাবে।
-                        </div>
+                        {showWarnings && (
+                            <div style={{
+                                background: "rgba(234, 179, 8, 0.1)",
+                                border: "1px solid rgba(234, 179, 8, 0.3)",
+                                color: "#fde047",
+                                padding: "1rem",
+                                borderRadius: "12px",
+                                fontSize: "0.95rem",
+                                textAlign: "center",
+                                lineHeight: "1.5"
+                            }}>
+                                আমরা শুধু মাত্র Gold User প্রোফাইল এর জন্য ইনস্টান উইথড্র অপশন Active। আপনি ৬৫০ BDT Pay করলে ইনস্ট্যান্ট Withdraw Option, Active হয়ে যাবে।
+                            </div>
+                        )}
 
                         {/* Financial Stats Grid */}
                         <div className="stats-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
@@ -337,6 +362,11 @@ function ResultContent() {
                         </p>
                     </div>
                 )}
+                <VerificationModal
+                    isOpen={isVerificationModalOpen}
+                    onClose={() => setIsVerificationModalOpen(false)}
+                    onSubmit={handleVerificationSubmit}
+                />
             </div>
         </main>
     );
